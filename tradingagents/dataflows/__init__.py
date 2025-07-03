@@ -1,9 +1,16 @@
-from .finnhub_utils import get_data_in_range
+from .finnhub_utils import get_data_in_range as get_data_in_range_finnhub
+from .fmp_utils import get_data_in_range as get_data_in_range_fmp
+from .config import get_financial_data_provider
+
+
+def get_data_in_range(*args, **kwargs):
+    if get_financial_data_provider() == "fmp":
+        return get_data_in_range_fmp(*args, **kwargs)
+    return get_data_in_range_finnhub(*args, **kwargs)
 from .googlenews_utils import getNewsData
 from .yfin_utils import YFinanceUtils
 from .reddit_utils import fetch_top_from_category
 from .stockstats_utils import StockstatsUtils
-from .yfin_utils import YFinanceUtils
 
 from .interface import (
     # News and sentiment functions
