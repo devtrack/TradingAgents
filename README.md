@@ -13,14 +13,14 @@
 
 <div align="center">
   <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=de">Deutsch</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=es">Español</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=fr">français</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=ja">日本語</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=ko">한국어</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=pt">Português</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=ru">Русский</a> | 
+  <a href="https://www.readme-i18n.com/devtrack/TradingAgents?lang=zh">中文</a>
 </div>
 
 ---
@@ -32,11 +32,11 @@
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
 
 <div align="center">
-<a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
+<a href="https://www.star-history.com/#devtrack/TradingAgents&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" />
-   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" style="width: 80%; height: auto;" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=devtrack/TradingAgents&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=devtrack/TradingAgents&type=Date" />
+   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=devtrack/TradingAgents&type=Date" style="width: 80%; height: auto;" />
  </picture>
 </a>
 </div>
@@ -97,7 +97,7 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 
 Clone TradingAgents:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
+git clone https://github.com/devtrack/TradingAgents.git
 cd TradingAgents
 ```
 
@@ -113,17 +113,13 @@ pip install -r requirements.txt
 ```
 
 ### Required APIs
-
-You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
-```bash
-export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
-export FMP_API_KEY=$YOUR_FMP_API_KEY
-```
-
+You will also need the FMP API for financial data. All of our code is implemented with the free tier.
 You will need the OpenAI API for all the agents.
-```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+```powershell
+set FMP_API_KEY=YOUR_FMP_API_KEY
+set OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 ```
+
 
 ### CLI Usage
 
