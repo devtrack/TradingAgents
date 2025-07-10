@@ -12,9 +12,16 @@ def create_fundamentals_analyst(llm, toolkit):
         if toolkit.config["online_tools"]:
             tools = [toolkit.get_fundamentals_openai]
         else:
+            if toolkit.config.get("financial_data_provider", "finnhub") == "fmp":
+                senti_tool = toolkit.get_fmp_company_insider_sentiment
+                trans_tool = toolkit.get_fmp_company_insider_transactions
+            else:
+                senti_tool = toolkit.get_finnhub_company_insider_sentiment
+                trans_tool = toolkit.get_finnhub_company_insider_transactions
+
             tools = [
-                toolkit.get_finnhub_company_insider_sentiment,
-                toolkit.get_finnhub_company_insider_transactions,
+                senti_tool,
+                trans_tool,
                 toolkit.get_simfin_balance_sheet,
                 toolkit.get_simfin_cashflow,
                 toolkit.get_simfin_income_stmt,

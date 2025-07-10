@@ -120,6 +120,10 @@ set FMP_API_KEY=YOUR_FMP_API_KEY
 set OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 ```
 
+By default the framework uses FMP for all financial data. If you prefer to use
+Finnhub instead, set `financial_data_provider` to `finnhub` in your runtime
+configuration.
+
 
 ### CLI Usage
 
