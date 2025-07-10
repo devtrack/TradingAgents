@@ -11,11 +11,12 @@ def create_news_analyst(llm, toolkit):
         if toolkit.config["online_tools"]:
             tools = [toolkit.get_global_news_openai, toolkit.get_google_news]
         else:
-            tools = [
-                toolkit.get_finnhub_news,
-                toolkit.get_reddit_news,
-                toolkit.get_google_news,
-            ]
+            if toolkit.config.get("financial_data_provider", "finnhub") == "fmp":
+                news_tool = toolkit.get_fmp_news
+            else:
+                news_tool = toolkit.get_finnhub_news
+
+            tools = [news_tool, toolkit.get_reddit_news, toolkit.get_google_news]
 
         system_message = (
             "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."

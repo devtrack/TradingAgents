@@ -99,6 +99,28 @@ class Toolkit:
 
     @staticmethod
     @tool
+    def get_fmp_news(
+        ticker: Annotated[
+            str,
+            "Search query of a company, e.g. 'AAPL, TSM, etc.",
+        ],
+        start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    ):
+        """Retrieve the latest news about a given stock from FMP within a date range."""
+
+        end_date_str = end_date
+
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        look_back_days = (end_date - start_date).days
+
+        news_result = interface.get_fmp_news(ticker, end_date_str, look_back_days)
+
+        return news_result
+
+    @staticmethod
+    @tool
     def get_reddit_stock_info(
         ticker: Annotated[
             str,
@@ -245,6 +267,18 @@ class Toolkit:
 
     @staticmethod
     @tool
+    def get_fmp_company_insider_sentiment(
+        ticker: Annotated[str, "ticker symbol for the company"],
+        curr_date: Annotated[str, "current date of you are trading at, yyyy-mm-dd"],
+    ):
+        """Retrieve insider sentiment information from FMP for the past 30 days."""
+
+        data_sentiment = interface.get_fmp_company_insider_sentiment(ticker, curr_date, 30)
+
+        return data_sentiment
+
+    @staticmethod
+    @tool
     def get_finnhub_company_insider_transactions(
         ticker: Annotated[str, "ticker symbol"],
         curr_date: Annotated[
@@ -264,6 +298,18 @@ class Toolkit:
         data_trans = interface.get_finnhub_company_insider_transactions(
             ticker, curr_date, 30
         )
+
+        return data_trans
+
+    @staticmethod
+    @tool
+    def get_fmp_company_insider_transactions(
+        ticker: Annotated[str, "ticker symbol"],
+        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    ):
+        """Retrieve insider transactions from FMP for the past 30 days."""
+
+        data_trans = interface.get_fmp_company_insider_transactions(ticker, curr_date, 30)
 
         return data_trans
 

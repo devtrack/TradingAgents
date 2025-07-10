@@ -150,6 +150,108 @@ def get_finnhub_company_insider_transactions(
     )
 
 
+def get_fmp_news(
+    ticker: Annotated[
+        str,
+        "Search query of a company's, e.g. 'AAPL, TSM, etc.",
+    ],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+):
+    """Retrieve company news using the FMP API."""
+
+    start_date = datetime.strptime(curr_date, "%Y-%m-%d")
+    before = start_date - relativedelta(days=look_back_days)
+    before = before.strftime("%Y-%m-%d")
+
+    result = get_data_in_range_fmp(ticker, before, curr_date, "news_data", DATA_DIR)
+
+    if len(result) == 0:
+        return ""
+
+    combined_result = ""
+    for day, data in result.items():
+        if len(data) == 0:
+            continue
+        for entry in data:
+            title = entry.get("headline") or entry.get("title")
+            summary = entry.get("summary") or entry.get("text", "")
+            current_news = "### " + title + f" ({day})" + "\n" + summary
+            combined_result += current_news + "\n\n"
+
+    return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+
+
+def get_fmp_company_insider_sentiment(
+    ticker: Annotated[str, "ticker symbol for the company"],
+    curr_date: Annotated[str, "current date of you are trading at, yyyy-mm-dd"],
+    look_back_days: Annotated[int, "number of days to look back"],
+):
+    """Retrieve insider sentiment from FMP."""
+
+    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+    before = date_obj - relativedelta(days=look_back_days)
+    before = before.strftime("%Y-%m-%d")
+
+    data = get_data_in_range_fmp(ticker, before, curr_date, "insider_senti", DATA_DIR)
+
+    if len(data) == 0:
+        return ""
+
+    result_str = ""
+    seen_dicts = []
+    for date, senti_list in data.items():
+        for entry in senti_list:
+            if entry not in seen_dicts:
+                year = entry.get("year") or entry.get("y")
+                month = entry.get("month") or entry.get("m")
+                change = entry.get("change")
+                mspr = entry.get("mspr")
+                result_str += f"### {year}-{month}:\nChange: {change}\nMonthly Share Purchase Ratio: {mspr}\n\n"
+                seen_dicts.append(entry)
+
+    return (
+        f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n" + result_str + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+    )
+
+
+def get_fmp_company_insider_transactions(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    look_back_days: Annotated[int, "how many days to look back"],
+):
+    """Retrieve insider transactions from FMP."""
+
+    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+    before = date_obj - relativedelta(days=look_back_days)
+    before = before.strftime("%Y-%m-%d")
+
+    data = get_data_in_range_fmp(ticker, before, curr_date, "insider_trans", DATA_DIR)
+
+    if len(data) == 0:
+        return ""
+
+    result_str = ""
+    seen_dicts = []
+    for date, senti_list in data.items():
+        for entry in senti_list:
+            if entry not in seen_dicts:
+                filing = entry.get("filingDate", "")
+                name = entry.get("name", "")
+                change = entry.get("change", "")
+                share = entry.get("share", "")
+                trans_price = entry.get("transactionPrice", "")
+                code = entry.get("transactionCode", "")
+                result_str += (
+                    f"### Filing Date: {filing}, {name}:\nChange:{change}\nShares: {share}\nTransaction Price: {trans_price}\nTransaction Code: {code}\n\n"
+                )
+                seen_dicts.append(entry)
+
+    return (
+        f"## {ticker} insider transactions from {before} to {curr_date}:\n" + result_str + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+    )
+
+
 def get_simfin_balance_sheet(
     ticker: Annotated[str, "ticker symbol"],
     freq: Annotated[
