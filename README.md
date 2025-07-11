@@ -197,6 +197,15 @@ You can view the full list of configurations in `tradingagents/default_config.py
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
 
+### Running Tests
+
+After installing the package dependencies, you can run the unit tests with:
+
+```bash
+pip install pytest
+pytest
+```
+
 ## Citation
 
 Please reference our work if you find *TradingAgents* provides you with some help :)
