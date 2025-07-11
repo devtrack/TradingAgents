@@ -103,3 +103,35 @@ def portfolio_performance(portfolio: Portfolio, price_histories: Dict[str, Itera
 
     risk = variance ** 0.5
     return weighted_return, risk
+
+
+class PortfolioOptimizer:
+    """Simple optimizer suggesting position adjustments based on performance."""
+
+    def __init__(self, target_return: float = 0.05, max_risk: float = 0.1):
+        self.target_return = target_return
+        self.max_risk = max_risk
+
+    def optimize(
+        self,
+        portfolio: Portfolio,
+        price_histories: Dict[str, Iterable[float]],
+    ) -> Tuple[Dict[str, float], Tuple[float, float]]:
+        """Return suggested quantity changes and (return, risk)."""
+        ret, risk = portfolio_performance(portfolio, price_histories)
+        adjustments: Dict[str, float] = {}
+
+        if risk > self.max_risk:
+            for sym, pos in portfolio.positions.items():
+                adjustments[sym] = -0.5 * pos.quantity
+        elif ret < self.target_return and portfolio.positions:
+            invest = portfolio.cash / len(portfolio.positions)
+            for sym, pos in portfolio.positions.items():
+                price = price_histories.get(sym, [pos.average_price])[-1]
+                qty = invest / price if price > 0 else 0
+                adjustments[sym] = qty
+        else:
+            for sym in portfolio.positions:
+                adjustments[sym] = 0.0
+
+        return adjustments, (ret, risk)

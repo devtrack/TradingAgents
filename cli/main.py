@@ -21,6 +21,7 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.portfolio import PortfolioOptimizer
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
@@ -1099,6 +1100,30 @@ def run_analysis():
 @app.command()
 def analyze():
     run_analysis()
+
+
+@app.command()
+def track(
+    tickers: str,
+    cash: float = 10000.0,
+    trade_date: Optional[str] = None,
+):
+    """Run portfolio tracking for comma separated tickers."""
+    tickers_list = [t.strip() for t in tickers.split(",") if t.strip()]
+    date_val = trade_date or datetime.date.today().isoformat()
+    graph = TradingAgentsGraph()
+    graph.portfolio.deposit(cash, datetime.datetime.now())
+    results = graph.propagate_portfolio(tickers_list, date_val)
+    optimizer = PortfolioOptimizer()
+    adjustments, metrics = optimizer.optimize(graph.portfolio, {})
+    table = Table(title="Signals")
+    table.add_column("Ticker")
+    table.add_column("Signal")
+    for tk, res in results.items():
+        table.add_row(tk, res["signal"])
+    console.print(table)
+    console.print(f"Return: {metrics[0]:.2f} Risk: {metrics[1]:.2f}")
+    console.print(f"Adjustments: {adjustments}")
 
 
 if __name__ == "__main__":

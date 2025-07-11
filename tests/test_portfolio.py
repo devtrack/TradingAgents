@@ -1,5 +1,9 @@
 from datetime import datetime
-from tradingagents.portfolio import Portfolio, portfolio_performance
+from tradingagents.portfolio import (
+    Portfolio,
+    portfolio_performance,
+    PortfolioOptimizer,
+)
 
 
 def test_basic_portfolio_operations():
@@ -23,3 +27,31 @@ def test_portfolio_performance():
     ret, risk = portfolio_performance(p, {"AAPL": [100, 110]})
     assert abs(ret - 0.1) < 1e-6
     assert risk == 0.0
+
+
+def test_portfolio_optimizer():
+    p = Portfolio(cash=1000)
+    p.buy("AAPL", 10, 10, datetime(2024, 1, 1))
+    opt = PortfolioOptimizer(target_return=0.2, max_risk=0.05)
+    adj, (ret, risk) = opt.optimize(p, {"AAPL": [10, 8]})
+    assert adj["AAPL"] < 0
+
+
+def test_update_portfolio_signal():
+    p = Portfolio(cash=100)
+
+    def update(signal):
+        from datetime import date
+
+        if signal.upper().startswith("BUY"):
+            p.buy("AAPL", 1, 10, date.today())
+        elif signal.upper().startswith("SELL"):
+            try:
+                p.sell("AAPL", 1, 10, date.today())
+            except Exception:
+                pass
+
+    update("BUY")
+    assert p.positions["AAPL"].quantity == 1
+    update("SELL")
+    assert "AAPL" not in p.positions
