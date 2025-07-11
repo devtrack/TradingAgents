@@ -6,6 +6,8 @@ import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
 
+from tradingagents.portfolio import Portfolio
+
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -100,6 +102,7 @@ class TradingAgentsGraph:
         self.propagator = Propagator()
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.portfolio = Portfolio()
 
         # State tracking
         self.curr_state = None
@@ -199,7 +202,9 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        signal = self.process_signal(final_state["final_trade_decision"])
+        self._update_portfolio(company_name, signal)
+        return final_state, signal
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
@@ -264,6 +269,26 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def _update_portfolio(
+        self,
+        ticker: str,
+        signal: str,
+        quantity: float = 1.0,
+        price: float = 1.0,
+    ) -> None:
+        """Update portfolio based on BUY/SELL signal."""
+        dt = date.today()
+        if signal.upper().startswith("BUY"):
+            try:
+                self.portfolio.buy(ticker, quantity, price, dt)
+            except Exception:
+                pass
+        elif signal.upper().startswith("SELL"):
+            try:
+                self.portfolio.sell(ticker, quantity, price, dt)
+            except Exception:
+                pass
 
     def propagate_portfolio(self, tickers: List[str], trade_date: str):
         """Run the graph for multiple tickers and return decisions."""
