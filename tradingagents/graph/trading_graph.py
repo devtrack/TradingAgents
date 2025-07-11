@@ -264,3 +264,14 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def propagate_portfolio(self, tickers: List[str], trade_date: str):
+        """Run the graph for multiple tickers and return decisions."""
+        results = {}
+        for ticker in tickers:
+            final_state, signal = self.propagate(ticker, trade_date)
+            results[ticker] = {
+                "state": final_state,
+                "signal": signal,
+            }
+        return results
