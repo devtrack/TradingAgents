@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 import json
 from datetime import date
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Dict, Any, Tuple, List, Optional, Iterable
 
-from tradingagents.portfolio import Portfolio
+from tradingagents.portfolio import Portfolio, PortfolioOptimizer
 
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -103,6 +103,7 @@ class TradingAgentsGraph:
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
         self.portfolio = Portfolio()
+        self.optimizer = PortfolioOptimizer()
 
         # State tracking
         self.curr_state = None
@@ -290,6 +291,23 @@ class TradingAgentsGraph:
             except Exception:
                 pass
 
+    def rebalance(self, price_histories: Dict[str, Iterable[float]]) -> Tuple[Dict[str, float], Tuple[float, float]]:
+        """Optimize portfolio allocation based on price histories."""
+        adjustments, metrics = self.optimizer.optimize(self.portfolio, price_histories)
+        dt = date.today()
+        for sym, qty in adjustments.items():
+            if qty > 0:
+                try:
+                    self.portfolio.buy(sym, qty, price_histories.get(sym, [1])[-1], dt)
+                except Exception:
+                    pass
+            elif qty < 0:
+                try:
+                    self.portfolio.sell(sym, -qty, price_histories.get(sym, [1])[-1], dt)
+                except Exception:
+                    pass
+        return adjustments, metrics
+
     def propagate_portfolio(self, tickers: List[str], trade_date: str):
         """Run the graph for multiple tickers and return decisions."""
         results = {}
@@ -299,4 +317,6 @@ class TradingAgentsGraph:
                 "state": final_state,
                 "signal": signal,
             }
+        # Perform portfolio optimization after processing all tickers
+        self.rebalance({})
         return results

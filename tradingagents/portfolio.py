@@ -106,7 +106,7 @@ def portfolio_performance(portfolio: Portfolio, price_histories: Dict[str, Itera
 
 
 class PortfolioOptimizer:
-    """Simple optimizer suggesting position adjustments based on performance."""
+    """Mean-variance optimizer using asset correlations."""
 
     def __init__(self, target_return: float = 0.05, max_risk: float = 0.1):
         self.target_return = target_return
@@ -118,20 +118,55 @@ class PortfolioOptimizer:
         price_histories: Dict[str, Iterable[float]],
     ) -> Tuple[Dict[str, float], Tuple[float, float]]:
         """Return suggested quantity changes and (return, risk)."""
-        ret, risk = portfolio_performance(portfolio, price_histories)
-        adjustments: Dict[str, float] = {}
+        import numpy as np
 
-        if risk > self.max_risk:
-            for sym, pos in portfolio.positions.items():
-                adjustments[sym] = -0.5 * pos.quantity
-        elif ret < self.target_return and portfolio.positions:
-            invest = portfolio.cash / len(portfolio.positions)
-            for sym, pos in portfolio.positions.items():
-                price = price_histories.get(sym, [pos.average_price])[-1]
-                qty = invest / price if price > 0 else 0
-                adjustments[sym] = qty
+        ret, risk = portfolio_performance(portfolio, price_histories)
+        symbols = list(portfolio.positions.keys())
+        adjustments: Dict[str, float] = {sym: 0.0 for sym in symbols}
+
+        # Gather return series for each symbol
+        returns_data = []
+        used_symbols = []
+        for sym in symbols:
+            hist = price_histories.get(sym)
+            if hist is None or len(hist) < 2:
+                continue
+            arr = np.asarray(hist, dtype=float)
+            returns = np.diff(arr) / arr[:-1]
+            returns_data.append(returns)
+            used_symbols.append(sym)
+
+        if len(returns_data) >= 2:
+            ret_matrix = np.array(returns_data)
+            mu = ret_matrix.mean(axis=1)
+            cov = np.cov(ret_matrix)
+            try:
+                inv_cov = np.linalg.inv(cov)
+            except np.linalg.LinAlgError:
+                inv_cov = np.linalg.pinv(cov)
+
+            weights = inv_cov @ mu
+            if weights.sum() != 0:
+                weights = weights / weights.sum()
+            port_risk = float(np.sqrt(weights.T @ cov @ weights))
+            if port_risk > self.max_risk and port_risk > 0:
+                weights = weights * (self.max_risk / port_risk)
+                weights = weights / weights.sum()
+
+            total_invested = sum(
+                portfolio.positions[sym].quantity
+                * price_histories[sym][-1]
+                for sym in used_symbols
+            )
+            for w, sym in zip(weights, used_symbols):
+                target_val = w * total_invested
+                price = price_histories[sym][-1]
+                target_qty = target_val / price
+                adjustments[sym] = target_qty - portfolio.positions[sym].quantity
         else:
-            for sym in portfolio.positions:
-                adjustments[sym] = 0.0
+            # Fallback to simple logic when data is insufficient
+            if risk > self.max_risk or ret < self.target_return:
+                for sym, pos in portfolio.positions.items():
+                    adjustments[sym] = -0.5 * pos.quantity
 
         return adjustments, (ret, risk)
