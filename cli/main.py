@@ -21,7 +21,6 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.portfolio import PortfolioOptimizer
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
@@ -1114,8 +1113,7 @@ def track(
     graph = TradingAgentsGraph()
     graph.portfolio.deposit(cash, datetime.datetime.now())
     results = graph.propagate_portfolio(tickers_list, date_val)
-    optimizer = PortfolioOptimizer()
-    adjustments, metrics = optimizer.optimize(graph.portfolio, {})
+    adjustments, metrics = graph.optimizer.optimize(graph.portfolio, {})
     table = Table(title="Signals")
     table.add_column("Ticker")
     table.add_column("Signal")
