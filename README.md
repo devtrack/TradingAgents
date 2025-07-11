@@ -202,6 +202,7 @@ We welcome contributions from the community! Whether it's fixing a bug, improvin
 After installing the package dependencies, you can run the unit tests with:
 
 ```bash
+pip install pytest
 pytest
 ```
 
