@@ -1,6 +1,11 @@
 name: CI
 
 on:
+  push:
+    paths:
+      - 'tradingagents/**'
+      - 'tests/**'
+      - '.github/workflows/tests.yml'
   pull_request:
 
 jobs:
