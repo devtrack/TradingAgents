@@ -1212,7 +1212,6 @@ def track(
     trade_date: Optional[str] = None,
 ):
     """Run portfolio tracking for comma separated tickers."""
-    ensure_session()
     tickers_list = [t.strip() for t in tickers.split(",") if t.strip()]
     date_val = trade_date or datetime.date.today().isoformat()
     graph = TradingAgentsGraph()

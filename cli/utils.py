@@ -19,6 +19,21 @@ ANALYST_ORDER = [
 ]
 
 
+@dataclass
+class ModelInfo:
+    id: str
+    display_name: str
+    capabilities: set[str]
+
+
+@dataclass
+class ProviderInfo:
+    id: str
+    display_name: str
+    base_url: Optional[str]
+    models: List[ModelInfo]
+
+
 def _normalize_capabilities(raw_caps) -> set[str]:
     if isinstance(raw_caps, str):
         return {raw_caps.lower()}
@@ -84,21 +99,6 @@ def load_model_catalog(auth_client: Optional[AuthClient] = None) -> List[Provide
     if not providers:
         raise AuthenticationError("Model discovery returned no providers.")
     return providers
-
-
-@dataclass
-class ModelInfo:
-    id: str
-    display_name: str
-    capabilities: set[str]
-
-
-@dataclass
-class ProviderInfo:
-    id: str
-    display_name: str
-    base_url: Optional[str]
-    models: List[ModelInfo]
 
 
 def get_ticker() -> str:
