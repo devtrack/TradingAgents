@@ -125,6 +125,16 @@ Finnhub instead, set `financial_data_provider` to `finnhub` in your runtime
 configuration.
 
 
+### Authentification et découverte des modèles
+
+Pour utiliser le CLI, connectez-vous au backend d'authentification (device-code OAuth).
+
+- **Prérequis** : disposer d'un compte autorisé sur l'API visée. Les URL et identifiants par défaut peuvent être personnalisés via les variables d'environnement `TRADINGAGENTS_AUTH_BASE_URL`, `TRADINGAGENTS_CLIENT_ID` et `TRADINGAGENTS_SCOPE`.
+- **Connexion** : lancez `python -m cli.main login` (ou `tradingagents login` si installé comme paquet). La commande affiche l'URL de vérification et ouvre le navigateur (désactivez-le avec `--open-browser False`).
+- **Stockage des tokens** : le client persiste d'abord les jetons dans le **system keyring**. Si le keyring n'est pas disponible, ils sont stockés dans `~/.tradingagents/auth_tokens.json` avec des permissions restreintes (`0600`).
+- **Lister/choisir un modèle** : après connexion, exécutez `python -m cli.main models list` pour récupérer le catalogue (`models list`). La table affiche les fournisseurs, les modèles disponibles et leurs capacités pour vous aider à sélectionner les modèles à utiliser dans vos configurations.
+
+
 ### CLI Usage
 
 You can also try out the CLI directly by running:
