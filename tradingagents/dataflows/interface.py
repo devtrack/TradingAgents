@@ -13,7 +13,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 import yfinance as yf
-from openai import OpenAI
+from tradingagents.auth.openai_client import create_openai_client
 from .config import get_config, set_config, DATA_DIR
 
 
@@ -815,7 +815,7 @@ def get_YFin_data(
 
 def get_stock_news_openai(ticker, curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = create_openai_client(base_url=config["backend_url"])
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -850,7 +850,7 @@ def get_stock_news_openai(ticker, curr_date):
 
 def get_global_news_openai(curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = create_openai_client(base_url=config["backend_url"])
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -885,7 +885,7 @@ def get_global_news_openai(curr_date):
 
 def get_fundamentals_openai(ticker, curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = create_openai_client(base_url=config["backend_url"])
 
     response = client.responses.create(
         model=config["quick_think_llm"],
