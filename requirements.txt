@@ -17,6 +17,7 @@ finnhub-python
 fmp-python
 parsel
 requests
+keyring
 tqdm
 pytz
 redis
