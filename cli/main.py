@@ -29,6 +29,7 @@ from tradingagents.auth import (
     TokenRefreshError,
     TokenRevocationError,
 )
+from tradingagents.auth.session_cache import save_session_config
 from cli.models import AnalystType
 from cli.utils import *
 
@@ -790,6 +791,15 @@ def run_analysis(model_providers):
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+
+    save_session_config(
+        {
+            "backend_url": config["backend_url"],
+            "llm_provider": config["llm_provider"],
+            "quick_think_llm": config["quick_think_llm"],
+            "deep_think_llm": config["deep_think_llm"],
+        }
+    )
 
     # Initialize the graph
     graph = TradingAgentsGraph(
