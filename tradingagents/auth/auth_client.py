@@ -52,6 +52,7 @@ class AuthClient:
             device_code=f"{self.base_url}/device/code",
             token=f"{self.base_url}/token",
             revoke=f"{self.base_url}/revoke",
+            
         )
 
     def start_device_code(self) -> DeviceCodeGrant:
@@ -154,6 +155,41 @@ class AuthClient:
                 # Best-effort: still clear the local cache even if remote revocation fails.
                 pass
         self.token_store.clear()
+
+    def discover_models(self) -> dict:
+        """Call the model discovery endpoint using the current session."""
+
+        def _perform_request(token_set: TokenSet) -> dict:
+            headers = {"Authorization": token_set.as_authorization_header()}
+            response = self.session.get(
+                f"{self.base_url}/models", headers=headers, timeout=10
+            )
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+
+            if response.status_code in (401, 403):
+                message = "authorization failed"
+                if payload:
+                    message = payload.get("error_description") or payload.get("error") or message
+                raise AuthenticationError(
+                    f"Model discovery unauthorized ({response.status_code}): {message}"
+                )
+
+            if not response.ok:
+                text = response.text if response.text else "unexpected error"
+                raise AuthenticationError(f"Model discovery failed: {text}")
+
+            return payload or {}
+
+        session = self.get_session()
+        try:
+            return _perform_request(session)
+        except AuthenticationError:
+            # Retry once after forcing a new login to handle consent revocations/expirations.
+            fresh_session = self.login()
+            return _perform_request(fresh_session)
 
 
 def _default_client() -> AuthClient:
