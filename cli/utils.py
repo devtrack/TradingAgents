@@ -1,7 +1,15 @@
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import questionary
-from typing import List, Optional, Tuple, Dict
+from rich.console import Console
+
+from tradingagents.auth import AuthClient, AuthenticationError
 
 from cli.models import AnalystType
+
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -9,6 +17,88 @@ ANALYST_ORDER = [
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
+
+
+def _normalize_capabilities(raw_caps) -> set[str]:
+    if isinstance(raw_caps, str):
+        return {raw_caps.lower()}
+    if isinstance(raw_caps, (list, tuple, set)):
+        return {str(cap).lower() for cap in raw_caps if cap}
+    return set()
+
+
+def _parse_providers(payload: dict) -> List[ProviderInfo]:
+    providers: List[ProviderInfo] = []
+    for provider in payload.get("providers", []):
+        provider_id = provider.get("id") or provider.get("provider") or provider.get("name")
+        if not provider_id:
+            continue
+        display_name = provider.get("display_name") or provider.get("name") or provider_id
+        base_url = provider.get("base_url") or provider.get("url")
+        models: List[ModelInfo] = []
+        for model in provider.get("models", []):
+            if isinstance(model, str):
+                models.append(
+                    ModelInfo(
+                        id=model,
+                        display_name=model,
+                        capabilities={"quick", "deep"},
+                    )
+                )
+                continue
+            model_id = model.get("id") or model.get("model")
+            if not model_id:
+                continue
+            display = model.get("display_name") or model.get("name") or model_id
+            capabilities = _normalize_capabilities(
+                model.get("capabilities") or model.get("tags") or []
+            )
+            capabilities = capabilities or {"quick", "deep"}
+            models.append(
+                ModelInfo(id=model_id, display_name=display, capabilities=capabilities)
+            )
+
+        providers.append(
+            ProviderInfo(
+                id=provider_id,
+                display_name=display_name,
+                base_url=base_url,
+                models=models,
+            )
+        )
+    return providers
+
+
+def load_model_catalog(auth_client: Optional[AuthClient] = None) -> List[ProviderInfo]:
+    """Fetch the model catalog from the auth service."""
+
+    client = auth_client or AuthClient()
+    try:
+        payload = client.discover_models()
+    except AuthenticationError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        raise AuthenticationError(f"Unexpected error while fetching models: {exc}")
+
+    providers = _parse_providers(payload or {})
+    if not providers:
+        raise AuthenticationError("Model discovery returned no providers.")
+    return providers
+
+
+@dataclass
+class ModelInfo:
+    id: str
+    display_name: str
+    capabilities: set[str]
+
+
+@dataclass
+class ProviderInfo:
+    id: str
+    display_name: str
+    base_url: Optional[str]
+    models: List[ModelInfo]
 
 
 def get_ticker() -> str:
@@ -122,44 +212,19 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
+def _filter_models_by_capability(provider: ProviderInfo, capability: str) -> List[ModelInfo]:
+    filtered = [model for model in provider.models if capability in model.capabilities]
+    return filtered or provider.models
+
+
+def select_shallow_thinking_agent(provider: ProviderInfo) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
-    SHALLOW_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
-            ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
-            ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
-        ],
-        "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-        ],
-        "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-        ],
-        "openrouter": [
-            ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
-        ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
-        ]
-    }
-
+    models = _filter_models_by_capability(provider, "quick")
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
-            questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            questionary.Choice(model.display_name, value=model.id) for model in models
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -172,56 +237,20 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        console.print("\n[red]No shallow thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
     return choice
 
 
-def select_deep_thinking_agent(provider) -> str:
+def select_deep_thinking_agent(provider: ProviderInfo) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define deep thinking llm engine options with their corresponding model names
-    DEEP_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
-            ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
-            ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
-            ("o4-mini - Specialized reasoning model (compact)", "o4-mini"),
-            ("o3-mini - Advanced reasoning model (lightweight)", "o3-mini"),
-            ("o3 - Full advanced reasoning model", "o3"),
-            ("o1 - Premier reasoning and problem-solving model", "o1"),
-        ],
-        "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
-        ],
-        "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-            ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
-        ],
-        "openrouter": [
-            ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
-        ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("qwen3", "qwen3"),
-        ]
-    }
-    
+    models = _filter_models_by_capability(provider, "deep")
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
-            questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            questionary.Choice(model.display_name, value=model.id) for model in models
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -239,22 +268,15 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
-def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
-    BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
-    ]
-    
+
+def select_llm_provider(providers: List[ProviderInfo]) -> ProviderInfo:
+    """Select the LLM provider using interactive selection from model discovery."""
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(provider.display_name, value=provider)
+            for provider in providers
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -265,12 +287,9 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]no LLM backend selected. Exiting...[/red]")
         exit(1)
-    
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
-    
-    return display_name, url
+
+    return choice

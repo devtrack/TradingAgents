@@ -22,6 +22,13 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.auth import (
+    AuthClient,
+    AuthenticationError,
+    DeviceCodeError,
+    TokenRefreshError,
+    TokenRevocationError,
+)
 from cli.models import AnalystType
 from cli.utils import *
 
@@ -32,6 +39,7 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+models_app = typer.Typer(name="models", help="Inspect available models")
 
 
 # Create a deque to store recent messages with a maximum length
@@ -168,6 +176,42 @@ class MessageBuffer:
 
 
 message_buffer = MessageBuffer()
+
+
+def _handle_authentication_failure(message: str, exc: Exception) -> None:
+    console.print(f"[red]{message}: {exc}[/red]")
+    console.print("[yellow]Please retry with `tradingagents login`.[/yellow]")
+    raise typer.Exit(code=1)
+
+
+def ensure_session(auth_client: Optional[AuthClient] = None):
+    client = auth_client or AuthClient()
+    try:
+        return client.get_session()
+    except AuthenticationError as exc:
+        console.print(
+            "[yellow]Session expirée ou consentement refusé. Relance du login...[/yellow]"
+        )
+        try:
+            return client.login()
+        except AuthenticationError as login_exc:
+            _handle_authentication_failure(
+                "Impossible de renouveler la session", login_exc
+            )
+    except (DeviceCodeError, TokenRefreshError) as exc:
+        _handle_authentication_failure("Erreur d'authentification", exc)
+
+
+def load_catalog_or_exit(auth_client: Optional[AuthClient] = None):
+    client = auth_client or AuthClient()
+    try:
+        return load_model_catalog(client)
+    except AuthenticationError as exc:
+        _handle_authentication_failure(
+            "Echec de la découverte des modèles (session expirée ou consentement manquant)",
+            exc,
+        )
+
 
 
 def create_layout():
@@ -391,7 +435,7 @@ def update_display(layout, spinner_text=None):
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
+def get_user_selections(model_providers):
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
     with open("./cli/static/welcome.txt", "r") as f:
@@ -469,7 +513,10 @@ def get_user_selections():
             "Step 5: OpenAI backend", "Select which service to talk to"
         )
     )
-    selected_llm_provider, backend_url = select_llm_provider()
+    selected_llm_provider = select_llm_provider(model_providers)
+    backend_url = selected_llm_provider.base_url or DEFAULT_CONFIG.get(
+        "backend_url"
+    )
     
     # Step 6: Thinking agents
     console.print(
@@ -485,7 +532,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
+        "llm_provider": selected_llm_provider.id.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
@@ -731,9 +778,9 @@ def extract_content_string(content):
     else:
         return str(content)
 
-def run_analysis():
+def run_analysis(model_providers):
     # First get all user selections
-    selections = get_user_selections()
+    selections = get_user_selections(model_providers)
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -1097,8 +1144,65 @@ def run_analysis():
 
 
 @app.command()
+def login(open_browser: bool = True):
+    """Authenticate with the TradingAgents auth service."""
+
+    client = AuthClient()
+    try:
+        client.login(open_browser=open_browser)
+        console.print("[green]Authentification réussie.[/green]")
+    except (AuthenticationError, DeviceCodeError) as exc:
+        _handle_authentication_failure("Echec de la connexion", exc)
+
+
+@app.command()
+def logout():
+    """Clear the current authentication session."""
+
+    client = AuthClient()
+    try:
+        client.logout()
+        console.print("[green]Déconnexion réussie.[/green]")
+    except TokenRevocationError as exc:
+        console.print(
+            f"[yellow]Le jeton n'a pas pu être révoqué côté serveur, mais a été supprimé localement: {exc}[/yellow]"
+        )
+
+
+@models_app.command("list")
+def list_models():
+    """List available providers and models from the discovery endpoint."""
+
+    client = AuthClient()
+    ensure_session(client)
+    providers = load_catalog_or_exit(client)
+
+    table = Table(title="Available Models")
+    table.add_column("Provider")
+    table.add_column("Model")
+    table.add_column("Capabilities")
+    table.add_column("Base URL")
+
+    for provider in providers:
+        base_url = provider.base_url or "-"
+        for model in provider.models:
+            caps = ", ".join(sorted(model.capabilities)) or "-"
+            table.add_row(
+                provider.display_name,
+                model.display_name,
+                caps,
+                base_url,
+            )
+
+    console.print(table)
+
+
+@app.command()
 def analyze():
-    run_analysis()
+    auth_client = AuthClient()
+    ensure_session(auth_client)
+    providers = load_catalog_or_exit(auth_client)
+    run_analysis(providers)
 
 
 @app.command()
@@ -1108,6 +1212,7 @@ def track(
     trade_date: Optional[str] = None,
 ):
     """Run portfolio tracking for comma separated tickers."""
+    ensure_session()
     tickers_list = [t.strip() for t in tickers.split(",") if t.strip()]
     date_val = trade_date or datetime.date.today().isoformat()
     graph = TradingAgentsGraph()
@@ -1122,6 +1227,9 @@ def track(
     console.print(table)
     console.print(f"Return: {metrics[0]:.2f} Risk: {metrics[1]:.2f}")
     console.print(f"Adjustments: {adjustments}")
+
+
+app.add_typer(models_app, name="models")
 
 
 if __name__ == "__main__":
