@@ -114,10 +114,9 @@ pip install -r requirements.txt
 
 ### Required APIs
 You will also need the FMP API for financial data. All of our code is implemented with the free tier.
-You will need the OpenAI API for all the agents.
+For LLM access, connect with your **OpenAI account via the login flow** (voir ci-dessous) plutôt que de fournir une clé `OPENAI_API_KEY`.
 ```powershell
 set FMP_API_KEY=YOUR_FMP_API_KEY
-set OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 ```
 
 By default the framework uses FMP for all financial data. If you prefer to use
@@ -133,6 +132,27 @@ Pour utiliser le CLI, connectez-vous au backend d'authentification (device-code 
 - **Connexion** : lancez `python -m cli.main login` (ou `tradingagents login` si installé comme paquet). La commande affiche l'URL de vérification et ouvre le navigateur (désactivez-le avec `--open-browser False`).
 - **Stockage des tokens** : le client persiste d'abord les jetons dans le **system keyring**. Si le keyring n'est pas disponible, ils sont stockés dans `~/.tradingagents/auth_tokens.json` avec des permissions restreintes (`0600`).
 - **Lister/choisir un modèle** : après connexion, exécutez `python -m cli.main models list` pour récupérer le catalogue (`models list`). La table affiche les fournisseurs, les modèles disponibles et leurs capacités pour vous aider à sélectionner les modèles à utiliser dans vos configurations.
+
+#### Check-list de test rapide
+
+1. **Initialiser l'environnement**
+   - Créez et activez un environnement virtuel (`conda` ou `venv`), puis installez les dépendances : `pip install -r requirements.txt`.
+   - Exportez la clé `FMP_API_KEY` (ou configurez `financial_data_provider=finnhub`). L'accès LLM se fait via **votre compte OpenAI connecté** avec `python -m cli.main login`, sans clé `OPENAI_API_KEY`.
+
+2. **Tester l'authentification device-code**
+   - Lancez `python -m cli.main login --open-browser False` pour afficher l'URL et le code de vérification.
+   - Saisissez le code dans le navigateur pour autoriser l'application, puis vérifiez que le jeton est bien stocké (keyring ou `~/.tradingagents/auth_tokens.json`).
+
+3. **Vérifier la découverte des modèles**
+   - Exécutez `python -m cli.main models list` pour afficher les fournisseurs, modèles et capacités accessibles avec votre session.
+   - Optionnel : utilisez `python -m cli.main models list --provider openai` pour filtrer si plusieurs backends sont configurés.
+
+4. **Essai de bout en bout via le CLI**
+   - Lancez `python -m cli.main` et suivez l'interface interactive (sélection du ticker, date, modèles récupérés à l'étape précédente, profondeur de recherche, etc.).
+   - Vérifiez que les appels LLM utilisent bien la session d'authentification (aucune demande de clé API explicite si le login est valide).
+
+5. **Tests automatisés (facultatif)**
+   - Exécutez `pytest -q` pour lancer la suite de tests unitaires et d'intégration. Vous pouvez mocker les appels réseau via les variables d'environnement prévues dans les tests si nécessaire.
 
 
 ### CLI Usage
